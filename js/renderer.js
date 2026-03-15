@@ -199,10 +199,18 @@ export class Renderer {
     const color = IMPORTANCE_COLORS[event.importance];
 
     const card = document.createElement('div');
-    card.className = `event-card importance-${event.importance}`;
     card.dataset.id  = event.id;
     card.dataset.row = event._row;
     card.style.setProperty('--imp-color', color);
+
+    // Determine category-based style (underkategori overrides kategori)
+    const kategori      = (event.kategori      || '').toLowerCase();
+    const underkategori = (event.underkategori || '').toLowerCase();
+    let categoryClass = '';
+    if      (underkategori.includes('vallning')) categoryClass = 'card-vallning';
+    else if (kategori.includes('förhör'))        categoryClass = 'card-forhor';
+
+    card.className = `event-card importance-${event.importance}${categoryClass ? ' ' + categoryClass : ''}`;
 
     // Date label
     const dateEl = document.createElement('div');

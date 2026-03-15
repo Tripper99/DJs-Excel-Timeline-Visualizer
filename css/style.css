@@ -219,6 +219,27 @@ body {
   pointer-events: none;
 }
 
+/* ── Category-based card styles ──────────────────────── */
+
+/* Förhör: yellow background */
+.event-card.card-forhor {
+  background: #fff9c4;
+  border-left-color: #f9a825;
+}
+.event-card.card-forhor .event-date {
+  color: #f9a825;
+}
+
+/* Vallning: dark green background, white text (overrides Förhör) */
+.event-card.card-vallning {
+  background: #1b5e20;
+  border-left-color: #081c09;
+}
+.event-card.card-vallning .event-date,
+.event-card.card-vallning .event-text {
+  color: #fff;
+}
+
 /* ── Pinned card (brought to front by dot click) ─────── */
 .event-card.pinned {
   box-shadow: 0 6px 20px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.14);

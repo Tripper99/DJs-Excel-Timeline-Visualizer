@@ -88,10 +88,12 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
     header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
     col_index = {str(h).strip(): i for i, h in enumerate(header_row) if h is not None}
 
-    idx_date       = col_index.get("Datum")
-    idx_text       = col_index.get("Haendelse")
-    idx_importance = col_index.get("Viktighet")
-    idx_short      = col_index.get("Event_short")
+    idx_date          = col_index.get("Datum")
+    idx_text          = col_index.get("Haendelse")
+    idx_importance    = col_index.get("Viktighet")
+    idx_short         = col_index.get("Event_short")
+    idx_kategori      = col_index.get("Kategori")
+    idx_underkategori = col_index.get("Underkategori")
 
     if idx_date is None or idx_text is None or idx_importance is None:
         print("Error: required columns (Datum, Haendelse, Viktighet) not found in header row.")
@@ -100,6 +102,10 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
 
     if idx_short is None:
         print("Warning: Event_short column not found; shortText will be empty.")
+    if idx_kategori is None:
+        print("Warning: Kategori column not found.")
+    if idx_underkategori is None:
+        print("Warning: Underkategori column not found.")
 
     events = []
     skipped = 0
@@ -110,10 +116,12 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
             skipped += 1
             continue
 
-        raw_date   = row[idx_date]       if idx_date       < len(row) else None
-        text       = row[idx_text]       if idx_text       < len(row) else None
-        importance = row[idx_importance] if idx_importance < len(row) else None
-        short_text = row[idx_short]      if idx_short is not None and idx_short < len(row) else None
+        raw_date      = row[idx_date]          if idx_date          < len(row) else None
+        text          = row[idx_text]          if idx_text          < len(row) else None
+        importance    = row[idx_importance]    if idx_importance    < len(row) else None
+        short_text    = row[idx_short]         if idx_short is not None and idx_short < len(row) else None
+        kategori      = row[idx_kategori]      if idx_kategori is not None and idx_kategori < len(row) else None
+        underkategori = row[idx_underkategori] if idx_underkategori is not None and idx_underkategori < len(row) else None
 
         imp = clamp_importance(importance)
         if imp is None:  # Viktighet == 0: skip row
@@ -135,6 +143,8 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
             "text": str(text).strip(),
             "shortText": str(short_text).strip() if short_text else "",
             "importance": imp,
+            "kategori": str(kategori).strip() if kategori else "",
+            "underkategori": str(underkategori).strip() if underkategori else "",
         })
 
     wb.close()
