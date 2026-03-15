@@ -4,7 +4,7 @@
 A local, web-based timeline app that visualizes ~2000 historical events (1940-2020) from an Excel file. Vertical scrollable timeline with zoom functionality where event importance (1-5) controls visibility at different zoom levels.
 
 ## Version
-0.1.0
+0.4.0
 
 ## Architecture
 - **convert.py**: Python Excel-to-JSON converter (openpyxl)
