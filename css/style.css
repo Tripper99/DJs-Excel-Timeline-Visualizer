@@ -209,14 +209,17 @@ body {
 
 .month-marker {
   position: absolute;
-  font-size: 9px;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 600;
   font-style: italic;
-  color: #aaa;
-  letter-spacing: 0.03em;
+  color: #555;
+  letter-spacing: 0.04em;
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+  background: rgba(240, 237, 232, 0.85);
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 /* ── Category-based card styles ──────────────────────── */
