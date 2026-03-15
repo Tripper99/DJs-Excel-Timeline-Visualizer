@@ -9,6 +9,10 @@ import { Renderer }   from './renderer.js';
 let timeline;
 let renderer;
 
+let velocity    = 0;
+const FRICTION  = 0.88;
+const MAX_VEL   = 80;
+
 const container      = document.getElementById('timeline-container');
 const track          = document.getElementById('timeline-track');
 const eventsContainer = document.getElementById('events-container');
@@ -55,12 +59,14 @@ function setupEventListeners() {
 
     if (e.ctrlKey || e.metaKey) {
       // Pinch-to-zoom on trackpad or ctrl+scroll
+      velocity = 0; // cancel momentum on zoom
       const factor = e.deltaY > 0 ? 0.92 : 1.08;
       timeline.zoom(factor, e.clientX);
     } else {
-      // Pan horizontally; support both horizontal and vertical wheel
+      // Accumulate into velocity for momentum scrolling
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      timeline.pan(delta);
+      velocity += delta;
+      velocity = Math.max(-MAX_VEL, Math.min(MAX_VEL, velocity));
     }
   }, { passive: false });
 
@@ -131,6 +137,12 @@ function getPinchDist(touches) {
 function renderLoop() {
   // Always re-schedule first so the loop survives any render error
   requestAnimationFrame(renderLoop);
+
+  // Apply momentum scroll
+  if (Math.abs(velocity) > 0.3) {
+    timeline.pan(velocity);
+    velocity *= FRICTION;
+  }
 
   if (timeline.consumeDirty()) {
     try {
