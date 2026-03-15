@@ -16,6 +16,7 @@ const container       = document.getElementById('timeline-container');
 const track           = document.getElementById('timeline-track');
 const eventsContainer = document.getElementById('events-container');
 const yearMarkersEl   = document.getElementById('year-markers');
+const monthMarkersEl  = document.getElementById('month-markers');
 const yearSegmentsEl  = document.getElementById('year-segments');
 const loading        = document.getElementById('loading');
 const hudZoom        = document.getElementById('hud-zoom-value');
@@ -28,7 +29,7 @@ async function init() {
     console.log(`Loaded ${data.metadata.totalEvents} events`);
 
     timeline = new Timeline(data.events, window.innerWidth);
-    renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl, yearSegmentsEl);
+    renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl, monthMarkersEl, yearSegmentsEl);
     targetScrollX = timeline.scrollX; // sync start position
 
     setupEventListeners();

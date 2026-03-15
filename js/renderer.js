@@ -44,19 +44,26 @@ const MAX_THICKNESS = 40;
 const SEGMENT_START_YEAR = 1965;
 const SEGMENT_END_YEAR   = 2020;
 
+const MONTH_THRESHOLD = 1.5; // pixelsPerDay at which month labels appear
+const SWEDISH_MONTHS  = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+
 export class Renderer {
-  constructor(timeline, track, eventsContainer, yearMarkersEl, yearSegmentsEl) {
+  constructor(timeline, track, eventsContainer, yearMarkersEl, monthMarkersEl, yearSegmentsEl) {
     this.timeline        = timeline;
     this.track           = track;
     this.eventsContainer = eventsContainer;
     this.yearMarkersEl   = yearMarkersEl;
+    this.monthMarkersEl  = monthMarkersEl;
     this.yearSegmentsEl  = yearSegmentsEl;
 
     /** @type {Map<number, HTMLElement>} */
-    this.activeCards       = new Map();
-    this.activeYearMarkers = new Map();
-    this.yearSegments      = new Map(); // year → segment div (created once)
-    this.visibleCount      = 0;
+    this.activeCards        = new Map();
+    this.activeYearMarkers  = new Map();
+    this.activeMonthMarkers = new Map(); // key: "YYYY-MM"
+    this.yearSegments       = new Map(); // year → segment div (created once)
+    this.visibleCount       = 0;
+
+    this.pinnedCardId = null; // id of card brought to front by dot click
 
     this._buildYearSegments();
   }
@@ -139,6 +146,12 @@ export class Renderer {
       card.style.left = `${x}px`;
       card.style.top  = `${rowTop}px`;
 
+      // Re-apply pinned state if this is the pinned card
+      if (event.id === this.pinnedCardId) {
+        card.classList.add('pinned');
+        card.style.zIndex = '20';
+      }
+
       if (!card.classList.contains('visible')) {
         card.classList.add('visible');
       }
@@ -156,6 +169,7 @@ export class Renderer {
 
     this.renderYearSegments(centerY);
     this.renderYearMarkers(viewLeft, viewRight, centerY);
+    this.renderMonthMarkers(viewLeft, viewRight, centerY);
   }
 
   renderYearSegments(centerY) {
@@ -206,11 +220,49 @@ export class Renderer {
     conn.style.height = `${cfg.connLen}px`;
     conn.style.left   = `${CONN_LEFT}px`;
 
+    // Clickable dot at the timeline end of the connector
+    const dot = document.createElement('div');
+    dot.className = 'connector-dot';
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.bringToFront(event.id);
+    });
+    conn.appendChild(dot);
+
     card.appendChild(dateEl);
     card.appendChild(textEl);
     card.appendChild(conn);
 
     return card;
+  }
+
+  bringToFront(id) {
+    // Clear previous pinned card
+    if (this.pinnedCardId !== null && this.pinnedCardId !== id) {
+      const prev = this.activeCards.get(this.pinnedCardId);
+      if (prev) {
+        prev.classList.remove('pinned');
+        prev.style.zIndex = '';
+      }
+    }
+
+    // Toggle off if clicking the same dot again
+    if (this.pinnedCardId === id) {
+      const card = this.activeCards.get(id);
+      if (card) {
+        card.classList.remove('pinned');
+        card.style.zIndex = '';
+      }
+      this.pinnedCardId = null;
+      return;
+    }
+
+    const card = this.activeCards.get(id);
+    if (card) {
+      card.classList.add('pinned');
+      card.style.zIndex = '20';
+    }
+    this.pinnedCardId = id;
   }
 
   renderYearMarkers(viewLeftDays, viewRightDays, centerY) {
@@ -252,6 +304,66 @@ export class Renderer {
       if (!shouldExist.has(year)) {
         marker.remove();
         this.activeYearMarkers.delete(year);
+      }
+    }
+  }
+
+  renderMonthMarkers(viewLeftDays, viewRightDays, centerY) {
+    const tl    = this.timeline;
+    const EPOCH = new Date(1900, 0, 1);
+
+    // Remove all month markers when below threshold
+    if (tl.pixelsPerDay < MONTH_THRESHOLD) {
+      for (const [, marker] of this.activeMonthMarkers) {
+        marker.remove();
+      }
+      this.activeMonthMarkers.clear();
+      return;
+    }
+
+    // Convert day bounds to Date objects to find visible year/month range
+    const dateLeft  = new Date(EPOCH.getTime() + viewLeftDays  * 86400000);
+    const dateRight = new Date(EPOCH.getTime() + viewRightDays * 86400000);
+
+    const startYear  = dateLeft.getFullYear();
+    const startMonth = dateLeft.getMonth();      // 0-based
+    const endYear    = dateRight.getFullYear();
+    const endMonth   = dateRight.getMonth();
+
+    const shouldExist = new Set();
+
+    for (let y = startYear; y <= endYear; y++) {
+      const mStart = (y === startYear) ? startMonth : 0;
+      const mEnd   = (y === endYear)   ? endMonth   : 11;
+
+      for (let m = mStart; m <= mEnd; m++) {
+        if (y < 1965 || y > 2020) continue;
+
+        const key  = `${y}-${m}`;
+        shouldExist.add(key);
+
+        const monthDate = new Date(y, m, 1);
+        const days      = Math.floor((monthDate - EPOCH) / 86400000);
+        const x         = tl.dateToX(days);
+
+        let marker = this.activeMonthMarkers.get(key);
+        if (!marker) {
+          marker = document.createElement('div');
+          marker.className   = 'month-marker';
+          marker.textContent = SWEDISH_MONTHS[m];
+          this.monthMarkersEl.appendChild(marker);
+          this.activeMonthMarkers.set(key, marker);
+        }
+        marker.style.left = `${x}px`;
+        marker.style.top  = `${centerY + 14}px`; // below the timeline line
+      }
+    }
+
+    // Remove out-of-view markers
+    for (const [key, marker] of this.activeMonthMarkers) {
+      if (!shouldExist.has(key)) {
+        marker.remove();
+        this.activeMonthMarkers.delete(key);
       }
     }
   }
