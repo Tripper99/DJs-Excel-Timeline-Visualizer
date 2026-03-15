@@ -8,7 +8,7 @@ import { formatDate } from './data.js';
 const MARGIN       = 400;   // px outside viewport to keep rendered
 const CARD_WIDTH   = 180;   // fixed card width in px
 const CARD_HEIGHT  = 85;    // fixed card height in px
-const NEAR_GAP     = 24;    // px from timeline to nearest row card edge
+const NEAR_GAP     = 54;    // px from timeline to nearest row card edge
 const BETWEEN_GAP  = 12;    // px gap between near and far rows
 const CONN_LEFT    = 14;    // x offset of connector from card left edge
 const MIN_CARD_GAP = 6;     // minimum horizontal gap between cards in same row
