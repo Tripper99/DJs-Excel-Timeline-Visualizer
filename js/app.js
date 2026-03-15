@@ -13,10 +13,11 @@ let velocity    = 0;
 const FRICTION  = 0.88;
 const MAX_VEL   = 80;
 
-const container      = document.getElementById('timeline-container');
-const track          = document.getElementById('timeline-track');
+const container       = document.getElementById('timeline-container');
+const track           = document.getElementById('timeline-track');
 const eventsContainer = document.getElementById('events-container');
-const yearMarkersEl  = document.getElementById('year-markers');
+const yearMarkersEl   = document.getElementById('year-markers');
+const yearSegmentsEl  = document.getElementById('year-segments');
 const loading        = document.getElementById('loading');
 const hudZoom        = document.getElementById('hud-zoom-value');
 const hudDate        = document.getElementById('hud-date-value');
@@ -28,7 +29,7 @@ async function init() {
     console.log(`Loaded ${data.metadata.totalEvents} events`);
 
     timeline = new Timeline(data.events, window.innerWidth);
-    renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl);
+    renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl, yearSegmentsEl);
 
     setupEventListeners();
     setupImportanceCheckboxes();

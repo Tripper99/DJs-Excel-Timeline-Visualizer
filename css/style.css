@@ -49,15 +49,20 @@ body {
   /* width set by JS */
 }
 
-/* ── Horizontal timeline line ──────────────────────── */
-#timeline-line {
+/* ── Year-colored timeline segments (replace single line) ── */
+#year-segments {
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 0;
-  right: 0;
-  height: 3px;
-  background: #b0a898;
-  transform: translateY(-1px);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.year-segment {
+  position: absolute;
+  height: 8px;
+  pointer-events: none;
 }
 
 /* ── Year markers (badges on the line) ─────────────── */
