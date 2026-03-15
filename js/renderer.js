@@ -35,15 +35,11 @@ const IMPORTANCE_COLORS = {
   5: '#616161',  // gray        – least important
 };
 
-const DECADE_COLORS = {
-  196: '#c62828',  // 1960s – red
-  197: '#e65100',  // 1970s – orange
-  198: '#2e7d32',  // 1980s – green
-  199: '#1565c0',  // 1990s – blue
-  200: '#6a1b9a',  // 2000s – purple
-  201: '#00695c',  // 2010s – teal
-  202: '#37474f',  // 2020s – slate
-};
+const YEAR_COLORS   = ['#5b8db8', '#b8885b']; // alternating: even / odd year
+const LOG_MIN_PPD   = Math.log(0.005);
+const LOG_MAX_PPD   = Math.log(20.0);
+const MIN_THICKNESS = 8;
+const MAX_THICKNESS = 40;
 
 const SEGMENT_START_YEAR = 1965;
 const SEGMENT_END_YEAR   = 2020;
@@ -66,12 +62,10 @@ export class Renderer {
   }
 
   _buildYearSegments() {
-    const EPOCH = new Date(1900, 0, 1);
     for (let year = SEGMENT_START_YEAR; year <= SEGMENT_END_YEAR; year++) {
       const seg = document.createElement('div');
       seg.className = 'year-segment';
-      const decade = Math.floor(year / 10);
-      seg.style.backgroundColor = DECADE_COLORS[decade] ?? '#888';
+      seg.style.backgroundColor = YEAR_COLORS[year % 2];
       this.yearSegmentsEl.appendChild(seg);
       this.yearSegments.set(year, seg);
     }
@@ -167,7 +161,11 @@ export class Renderer {
   renderYearSegments(centerY) {
     const tl    = this.timeline;
     const EPOCH = new Date(1900, 0, 1);
-    const top   = centerY - 4; // 8px tall, centered on line
+
+    // Thickness scales log-linearly from MIN_THICKNESS (min zoom) to MAX_THICKNESS (max zoom)
+    const t         = (Math.log(tl.pixelsPerDay) - LOG_MIN_PPD) / (LOG_MAX_PPD - LOG_MIN_PPD);
+    const thickness = Math.round(MIN_THICKNESS + Math.max(0, Math.min(1, t)) * (MAX_THICKNESS - MIN_THICKNESS));
+    const top       = centerY - thickness / 2;
 
     for (let year = SEGMENT_START_YEAR; year <= SEGMENT_END_YEAR; year++) {
       const seg      = this.yearSegments.get(year);
@@ -176,9 +174,10 @@ export class Renderer {
       const x        = tl.dateToX(days);
       const width    = tl.dateToX(nextDays) - x;
 
-      seg.style.left  = `${x}px`;
-      seg.style.width = `${width}px`;
-      seg.style.top   = `${top}px`;
+      seg.style.left   = `${x}px`;
+      seg.style.width  = `${width}px`;
+      seg.style.top    = `${top}px`;
+      seg.style.height = `${thickness}px`;
     }
   }
 
