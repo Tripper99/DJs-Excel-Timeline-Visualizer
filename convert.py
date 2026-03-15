@@ -91,9 +91,9 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
             skipped += 1
             continue
 
-        raw_date = row[0]
-        text = row[1]
-        importance = row[2] if len(row) > 2 else None
+        raw_date = row[10] if len(row) > 10 else None   # col 11: Datum
+        text = row[8] if len(row) > 8 else None          # col 9:  Haendelse
+        importance = row[1] if len(row) > 1 else None    # col 2:  Viktighet
 
         if not text or not str(text).strip():
             skipped += 1

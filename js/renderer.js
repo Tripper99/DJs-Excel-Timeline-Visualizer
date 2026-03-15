@@ -1,174 +1,205 @@
 /**
- * DOM rendering: viewport culling, card creation/recycling, overlap handling, year markers.
+ * Horizontal timeline renderer.
+ * Four event rows (2 above, 2 below), connector lines, color-coded by importance.
  */
 
 import { formatDate } from './data.js';
 
-const MARGIN = 300; // px outside viewport to keep rendered
-const CARD_MIN_HEIGHT = 50; // estimated minimum card height for overlap
+const MARGIN       = 400;   // px outside viewport to keep rendered
+const CARD_WIDTH   = 180;   // fixed card width in px
+const CARD_HEIGHT  = 85;    // fixed card height in px
+const NEAR_GAP     = 24;    // px from timeline to nearest row card edge
+const BETWEEN_GAP  = 12;    // px gap between near and far rows
+const CONN_LEFT    = 14;    // x offset of connector from card left edge
+const MIN_CARD_GAP = 6;     // minimum horizontal gap between cards in same row
+
+// Row definitions (index 0-5):
+//   0 = above-near, 1 = above-mid, 2 = above-far
+//   3 = below-near, 4 = below-mid, 5 = below-far
+// topOffset is relative to centerY (the timeline line Y)
+// connLen is the distance from card edge to the timeline line
+const ROW_CONFIGS = [
+  { topOffset: -(NEAR_GAP + CARD_HEIGHT),                                   connLen: NEAR_GAP,                              above: true  },
+  { topOffset: -(NEAR_GAP + 2*CARD_HEIGHT +   BETWEEN_GAP),                 connLen: NEAR_GAP + CARD_HEIGHT + BETWEEN_GAP,  above: true  },
+  { topOffset: -(NEAR_GAP + 3*CARD_HEIGHT + 2*BETWEEN_GAP),                 connLen: NEAR_GAP + 2*(CARD_HEIGHT+BETWEEN_GAP),above: true  },
+  { topOffset:  NEAR_GAP,                                                   connLen: NEAR_GAP,                              above: false },
+  { topOffset:  NEAR_GAP + CARD_HEIGHT +   BETWEEN_GAP,                     connLen: NEAR_GAP + CARD_HEIGHT + BETWEEN_GAP,  above: false },
+  { topOffset:  NEAR_GAP + 2*CARD_HEIGHT + 2*BETWEEN_GAP,                   connLen: NEAR_GAP + 2*(CARD_HEIGHT+BETWEEN_GAP),above: false },
+];
+
+const IMPORTANCE_COLORS = {
+  1: '#b71c1c',  // deep red    – most important
+  2: '#e65100',  // deep orange
+  3: '#1b5e20',  // dark green
+  4: '#0d47a1',  // dark blue
+  5: '#616161',  // gray        – least important
+};
 
 export class Renderer {
-  constructor(timeline, track, leftCol, rightCol, yearMarkersEl) {
-    this.timeline = timeline;
-    this.track = track;
-    this.leftCol = leftCol;
-    this.rightCol = rightCol;
-    this.yearMarkersEl = yearMarkersEl;
+  constructor(timeline, track, eventsContainer, yearMarkersEl) {
+    this.timeline        = timeline;
+    this.track           = track;
+    this.eventsContainer = eventsContainer;
+    this.yearMarkersEl   = yearMarkersEl;
 
     /** @type {Map<number, HTMLElement>} */
-    this.activeCards = new Map();
+    this.activeCards       = new Map();
     this.activeYearMarkers = new Map();
-    this.visibleCount = 0;
+    this.visibleCount      = 0;
   }
 
-  /** Full render pass. */
   render() {
-    const tl = this.timeline;
-    const { topDays, bottomDays } = tl.getViewportDays();
+    const tl      = this.timeline;
+    const centerY = window.innerHeight / 2;
+
+    const { leftDays, rightDays } = tl.getViewportDays();
     const marginDays = MARGIN / tl.pixelsPerDay;
-    const viewTop = topDays - marginDays;
-    const viewBottom = bottomDays + marginDays;
-    const maxImp = tl.visibleImportance;
+    const viewLeft   = leftDays  - marginDays;
+    const viewRight  = rightDays + marginDays;
+    const maxImp     = tl.visibleImportance;
 
-    // Position the track
-    this.track.style.transform = `translateX(-50%) translateY(${-tl.scrollY}px)`;
+    // Update track dimensions and position
+    this.track.style.width     = `${tl.trackWidth}px`;
+    this.track.style.transform = `translateX(${-tl.scrollX}px)`;
 
-    // Track which cards should exist
-    const shouldExist = new Set();
-    let visibleCount = 0;
-
-    // Overlap stacks per side
-    const leftStack = [];
-    const rightStack = [];
-
+    // Collect visible events (sorted by date – events array is already sorted)
+    const visibleEvents = [];
     for (const event of tl.events) {
-      // Skip if outside viewport or filtered by importance
-      if (event.days < viewTop || event.days > viewBottom) continue;
+      if (event.days < viewLeft)  continue;
+      if (event.days > viewRight) break;
       if (event.importance > maxImp) continue;
+      visibleEvents.push(event);
+    }
 
-      shouldExist.add(event.id);
-      visibleCount++;
-
-      const baseY = tl.dateToY(event.days);
-      const side = event.id % 2 === 0 ? 'left' : 'right';
-      const stack = side === 'left' ? leftStack : rightStack;
-
-      // Overlap: push down if collides with previous card on same side
-      let y = baseY;
-      for (let i = stack.length - 1; i >= 0; i--) {
-        const prev = stack[i];
-        if (y < prev.bottom) {
-          y = prev.bottom + 6;
-        } else {
+    // Greedy row assignment: for each event (in date order) pick the first
+    // row where the card doesn't overlap with the previous card in that row.
+    const rowRightEdge = [-Infinity, -Infinity, -Infinity, -Infinity, -Infinity, -Infinity];
+    for (const event of visibleEvents) {
+      const x = tl.dateToX(event.days);
+      let row = -1;
+      for (let r = 0; r < 6; r++) {
+        if (x >= rowRightEdge[r] + MIN_CARD_GAP) {
+          row = r;
           break;
         }
       }
+      if (row === -1) row = 0; // fallback: accept overlap in row 0
+      rowRightEdge[row] = x + CARD_WIDTH;
+      event._row = row;
+    }
 
-      // Get or create card
+    // Which card IDs should be in DOM
+    const shouldExist = new Set();
+
+    for (const event of visibleEvents) {
+      shouldExist.add(event.id);
+      const x      = tl.dateToX(event.days);
+      const cfg    = ROW_CONFIGS[event._row];
+      const rowTop = centerY + cfg.topOffset;
+
       let card = this.activeCards.get(event.id);
-      if (!card) {
-        card = this.createCard(event);
-        this.activeCards.set(event.id, card);
-        const col = side === 'left' ? this.leftCol : this.rightCol;
-        col.appendChild(card);
-        // Trigger reflow for animation
-        card.offsetHeight;
+
+      // Re-create card if row changed (connector length differs)
+      if (card && parseInt(card.dataset.row) !== event._row) {
+        card.remove();
+        card = null;
       }
 
-      card.style.top = `${y}px`;
+      if (!card) {
+        card = this.createCard(event, cfg);
+        this.activeCards.set(event.id, card);
+        this.eventsContainer.appendChild(card);
+        card.offsetHeight; // trigger reflow for transition
+      }
 
-      // Animate in
+      card.style.left = `${x}px`;
+      card.style.top  = `${rowTop}px`;
+
       if (!card.classList.contains('visible')) {
         card.classList.add('visible');
       }
-
-      // Estimate card height (use actual if available)
-      const cardHeight = card.offsetHeight || CARD_MIN_HEIGHT;
-      stack.push({ bottom: y + cardHeight });
-
-      // Trim stack: remove entries far above current Y
-      while (stack.length > 1 && stack[0].bottom < y - 200) {
-        stack.shift();
-      }
     }
 
-    this.visibleCount = visibleCount;
+    this.visibleCount = visibleEvents.length;
 
-    // Remove cards no longer needed
+    // Remove cards no longer in view
     for (const [id, card] of this.activeCards) {
       if (!shouldExist.has(id)) {
-        card.classList.remove('visible');
-        // Remove from DOM after transition
-        setTimeout(() => {
-          if (!card.classList.contains('visible')) {
-            card.remove();
-            this.activeCards.delete(id);
-          }
-        }, 350);
+        card.remove();
+        this.activeCards.delete(id);
       }
     }
 
-    // Render year markers
-    this.renderYearMarkers(viewTop, viewBottom);
+    this.renderYearMarkers(viewLeft, viewRight, centerY);
   }
 
-  /** Create an event card element. */
-  createCard(event) {
+  createCard(event, cfg) {
+    const color = IMPORTANCE_COLORS[event.importance];
+
     const card = document.createElement('div');
     card.className = `event-card importance-${event.importance}`;
-    if (event.dateGranularity === 'year') {
-      card.classList.add('granularity-year');
-    }
-    card.dataset.id = event.id;
+    card.dataset.id  = event.id;
+    card.dataset.row = event._row;
+    card.style.setProperty('--imp-color', color);
 
+    // Date label
     const dateEl = document.createElement('div');
-    dateEl.className = 'event-date';
+    dateEl.className   = 'event-date';
     dateEl.textContent = formatDate(event.date, event.dateGranularity);
 
+    // Text
     const textEl = document.createElement('div');
-    textEl.className = 'event-text';
+    textEl.className   = 'event-text';
     textEl.textContent = event.text;
+
+    // Connector line from card edge to timeline
+    const conn = document.createElement('div');
+    conn.className = cfg.above ? 'connector connector-above' : 'connector connector-below';
+    conn.style.height = `${cfg.connLen}px`;
+    conn.style.left   = `${CONN_LEFT}px`;
 
     card.appendChild(dateEl);
     card.appendChild(textEl);
+    card.appendChild(conn);
+
     return card;
   }
 
-  /** Render year markers along the timeline. */
-  renderYearMarkers(viewTopDays, viewBottomDays) {
-    const tl = this.timeline;
-    const epoch = new Date(1940, 0, 1);
+  renderYearMarkers(viewLeftDays, viewRightDays, centerY) {
+    const tl    = this.timeline;
+    const EPOCH = new Date(1900, 0, 1);
 
-    // Determine year interval based on zoom
+    // Choose year interval based on zoom
     let yearInterval = 10;
     if (tl.pixelsPerDay > 0.05) yearInterval = 5;
-    if (tl.pixelsPerDay > 0.2) yearInterval = 1;
+    if (tl.pixelsPerDay > 0.2)  yearInterval = 1;
 
-    const startYear = Math.floor((epoch.getFullYear() + viewTopDays / 365.25) / yearInterval) * yearInterval;
-    const endYear = Math.ceil((epoch.getFullYear() + viewBottomDays / 365.25) / yearInterval) * yearInterval;
+    const startYear = Math.floor((1900 + viewLeftDays  / 365.25) / yearInterval) * yearInterval;
+    const endYear   = Math.ceil( (1900 + viewRightDays / 365.25) / yearInterval) * yearInterval;
 
     const shouldExist = new Set();
 
     for (let year = startYear; year <= endYear; year += yearInterval) {
-      if (year < 1940) continue;
+      if (year < 1965 || year > 2020) continue;
       shouldExist.add(year);
 
       const yearDate = new Date(year, 0, 1);
-      const days = Math.floor((yearDate - epoch) / 86400000);
-      const y = tl.dateToY(days);
+      const days     = Math.floor((yearDate - EPOCH) / 86400000);
+      const x        = tl.dateToX(days);
 
       let marker = this.activeYearMarkers.get(year);
       if (!marker) {
         marker = document.createElement('div');
-        marker.className = 'year-marker';
+        marker.className   = 'year-marker';
         marker.textContent = year;
         this.yearMarkersEl.appendChild(marker);
         this.activeYearMarkers.set(year, marker);
       }
-      marker.style.top = `${y}px`;
+      marker.style.left = `${x}px`;
+      marker.style.top  = `${centerY - 9}px`; // centered on 18px line
     }
 
-    // Remove old markers
+    // Remove out-of-range markers
     for (const [year, marker] of this.activeYearMarkers) {
       if (!shouldExist.has(year)) {
         marker.remove();
