@@ -9,9 +9,8 @@ import { Renderer }   from './renderer.js';
 let timeline;
 let renderer;
 
-let velocity    = 0;
-const FRICTION  = 0.88;
-const MAX_VEL   = 80;
+let targetScrollX = 0;   // destination; actual scrollX lerps toward this
+const EASE        = 0.12; // fraction of remaining distance to close per frame
 
 const container       = document.getElementById('timeline-container');
 const track           = document.getElementById('timeline-track');
@@ -30,6 +29,7 @@ async function init() {
 
     timeline = new Timeline(data.events, window.innerWidth);
     renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl, yearSegmentsEl);
+    targetScrollX = timeline.scrollX; // sync start position
 
     setupEventListeners();
     setupImportanceCheckboxes();
@@ -59,15 +59,13 @@ function setupEventListeners() {
     e.preventDefault();
 
     if (e.ctrlKey || e.metaKey) {
-      // Pinch-to-zoom on trackpad or ctrl+scroll
-      velocity = 0; // cancel momentum on zoom
-      const factor = e.deltaY > 0 ? 0.92 : 1.08;
-      timeline.zoom(factor, e.clientX);
+      // Zoom: sync targetScrollX so lerp doesn't fight the new position
+      timeline.zoom(e.deltaY > 0 ? 0.92 : 1.08, e.clientX);
+      targetScrollX = timeline.scrollX;
     } else {
-      // Accumulate into velocity for momentum scrolling
+      // Advance the lerp target by the wheel delta
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      velocity += delta;
-      velocity = Math.max(-MAX_VEL, Math.min(MAX_VEL, velocity));
+      targetScrollX += delta;
     }
   }, { passive: false });
 
@@ -139,10 +137,15 @@ function renderLoop() {
   // Always re-schedule first so the loop survives any render error
   requestAnimationFrame(renderLoop);
 
-  // Apply momentum scroll
-  if (Math.abs(velocity) > 0.3) {
-    timeline.pan(velocity);
-    velocity *= FRICTION;
+  // Lerp actual scroll position toward target for smooth motion
+  const diff = targetScrollX - timeline.scrollX;
+  if (Math.abs(diff) > 0.1) {
+    const prevX = timeline.scrollX;
+    timeline.pan(diff * EASE);
+    // If a scroll boundary stopped movement, clamp target to avoid fighting the wall
+    if (Math.abs(timeline.scrollX - prevX) < Math.abs(diff * EASE) * 0.1) {
+      targetScrollX = timeline.scrollX;
+    }
   }
 
   if (timeline.consumeDirty()) {
