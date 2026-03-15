@@ -67,7 +67,8 @@ export class Renderer {
     for (const event of tl.events) {
       if (event.days < viewLeft)  continue;
       if (event.days > viewRight) break;
-      if (event.importance > maxImp) continue;
+      if (event.importance > maxImp) continue;              // zoom filter
+      if (!tl.manualLevels.has(event.importance)) continue; // checkbox filter
       visibleEvents.push(event);
     }
 
@@ -150,7 +151,7 @@ export class Renderer {
     // Text
     const textEl = document.createElement('div');
     textEl.className   = 'event-text';
-    textEl.textContent = event.text;
+    textEl.textContent = event.shortText || event.text;
 
     // Connector line from card edge to timeline
     const conn = document.createElement('div');

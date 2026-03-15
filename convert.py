@@ -60,11 +60,13 @@ def parse_date(value):
 
 
 def clamp_importance(value):
-    """Return importance clamped to 1-5, default 3."""
+    """Return importance clamped to 1-5, default 3. Returns None for 0 (skip row)."""
     if value is None:
         return 3
     try:
         v = int(value)
+        if v == 0:
+            return None
         return max(1, min(5, v))
     except (ValueError, TypeError):
         return 3
@@ -82,6 +84,23 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
     wb = openpyxl.load_workbook(input_path, read_only=True)
     ws = wb.active
 
+    # Read headers from row 1 to find column indices by name
+    header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
+    col_index = {str(h).strip(): i for i, h in enumerate(header_row) if h is not None}
+
+    idx_date       = col_index.get("Datum")
+    idx_text       = col_index.get("Haendelse")
+    idx_importance = col_index.get("Viktighet")
+    idx_short      = col_index.get("Event_short")
+
+    if idx_date is None or idx_text is None or idx_importance is None:
+        print("Error: required columns (Datum, Haendelse, Viktighet) not found in header row.")
+        print(f"Found columns: {list(col_index.keys())}")
+        sys.exit(1)
+
+    if idx_short is None:
+        print("Warning: Event_short column not found; shortText will be empty.")
+
     events = []
     skipped = 0
     rows = list(ws.iter_rows(min_row=2, values_only=True))
@@ -91,9 +110,15 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
             skipped += 1
             continue
 
-        raw_date = row[10] if len(row) > 10 else None   # col 11: Datum
-        text = row[8] if len(row) > 8 else None          # col 9:  Haendelse
-        importance = row[1] if len(row) > 1 else None    # col 2:  Viktighet
+        raw_date   = row[idx_date]       if idx_date       < len(row) else None
+        text       = row[idx_text]       if idx_text       < len(row) else None
+        importance = row[idx_importance] if idx_importance < len(row) else None
+        short_text = row[idx_short]      if idx_short is not None and idx_short < len(row) else None
+
+        imp = clamp_importance(importance)
+        if imp is None:  # Viktighet == 0: skip row
+            skipped += 1
+            continue
 
         if not text or not str(text).strip():
             skipped += 1
@@ -108,7 +133,8 @@ def convert(input_path="data/events.xlsx", output_path="data/events.json"):
             "date": date_str,
             "dateGranularity": granularity,
             "text": str(text).strip(),
-            "importance": clamp_importance(importance),
+            "shortText": str(short_text).strip() if short_text else "",
+            "importance": imp,
         })
 
     wb.close()

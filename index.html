@@ -16,9 +16,18 @@
   </div>
 
   <div id="hud">
-    <div id="hud-zoom">Zoom: <span id="hud-zoom-value"></span></div>
-    <div id="hud-date">Center: <span id="hud-date-value"></span></div>
-    <div id="hud-visible">Events: <span id="hud-visible-value"></span></div>
+    <span class="hud-label">Zoom:</span><span id="hud-zoom-value"></span>
+    <span class="hud-sep">·</span>
+    <span class="hud-label">Center:</span><span id="hud-date-value"></span>
+    <span class="hud-sep">·</span>
+    <span id="hud-visible-value"></span>
+    <span class="hud-sep">·</span>
+    <span class="hud-label">Show:</span>
+    <label class="hud-imp"><input type="checkbox" class="imp-cb" value="1" checked><span data-imp="1">1</span></label>
+    <label class="hud-imp"><input type="checkbox" class="imp-cb" value="2" checked><span data-imp="2">2</span></label>
+    <label class="hud-imp"><input type="checkbox" class="imp-cb" value="3" checked><span data-imp="3">3</span></label>
+    <label class="hud-imp"><input type="checkbox" class="imp-cb" value="4" checked><span data-imp="4">4</span></label>
+    <label class="hud-imp"><input type="checkbox" class="imp-cb" value="5" checked><span data-imp="5">5</span></label>
   </div>
 
   <div id="loading">Loading timeline data...</div>

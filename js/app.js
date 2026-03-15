@@ -27,6 +27,7 @@ async function init() {
     renderer = new Renderer(timeline, track, eventsContainer, yearMarkersEl);
 
     setupEventListeners();
+    setupImportanceCheckboxes();
     timeline.markDirty();
     requestAnimationFrame(renderLoop);
 
@@ -107,6 +108,20 @@ function setupEventListeners() {
   });
 }
 
+function setupImportanceCheckboxes() {
+  const checkboxes = document.querySelectorAll('.imp-cb');
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const levels = new Set();
+      checkboxes.forEach(c => {
+        if (c.checked) levels.add(Number(c.value));
+      });
+      timeline.manualLevels = levels;
+      timeline.markDirty();
+    });
+  });
+}
+
 function getPinchDist(touches) {
   const dx = touches[0].clientX - touches[1].clientX;
   const dy = touches[0].clientY - touches[1].clientY;
@@ -138,7 +153,7 @@ function updateHUD() {
 
   hudZoom.textContent    = `${zoomLabel} (${ppd.toFixed(3)})`;
   hudDate.textContent    = timeline.getViewportCenterDate();
-  hudVisible.textContent = `${renderer.visibleCount} visible (importance 1–${timeline.visibleImportance})`;
+  hudVisible.textContent = `${renderer.visibleCount} events visible`;
 }
 
 init();

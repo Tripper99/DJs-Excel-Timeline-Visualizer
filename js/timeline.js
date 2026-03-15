@@ -33,6 +33,7 @@ export class Timeline {
 
     const range = this.maxDays - this.minDays;
     this.pixelsPerDay = 0.075;  // starting zoom: shows importance 1 only
+    this.manualLevels = new Set([1, 2, 3, 4, 5]); // checkbox override (all on by default)
 
     // Start scrolled so the timeline is centered
     const totalWidth = range * this.pixelsPerDay;
