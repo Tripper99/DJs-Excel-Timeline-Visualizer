@@ -8,11 +8,11 @@ const MAX_PPD = 20.0;
 
 // Zoom thresholds: [minPPD, maxPPD, maxImportance]
 const ZOOM_THRESHOLDS = [
-  [0.005, 0.02,  1],
-  [0.02,  0.08,  2],
-  [0.08,  0.3,   3],
-  [0.3,   1.5,   4],
-  [1.5,   20.0,  5],
+  [0.005, 0.08,  1],  // up to 0.08: importance 1 only
+  [0.08,  0.3,   2],
+  [0.3,   1.0,   3],
+  [1.0,   4.0,   4],
+  [4.0,   20.0,  5],
 ];
 
 const EPOCH = new Date(1900, 0, 1);
@@ -31,9 +31,8 @@ export class Timeline {
       this.maxDays = 1;
     }
 
-    // Fit the full timeline in 80% of viewport width at startup
     const range = this.maxDays - this.minDays;
-    this.pixelsPerDay = Math.max(MIN_PPD, (containerWidth * 0.8) / range);
+    this.pixelsPerDay = 0.075;  // starting zoom: shows importance 1 only
 
     // Start scrolled so the timeline is centered
     const totalWidth = range * this.pixelsPerDay;

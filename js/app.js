@@ -136,7 +136,7 @@ function updateHUD() {
   else if (ppd < 1.5)  zoomLabel = 'Months';
   else                  zoomLabel = 'Days';
 
-  hudZoom.textContent    = zoomLabel;
+  hudZoom.textContent    = `${zoomLabel} (${ppd.toFixed(3)})`;
   hudDate.textContent    = timeline.getViewportCenterDate();
   hudVisible.textContent = `${renderer.visibleCount} visible (importance 1–${timeline.visibleImportance})`;
 }
