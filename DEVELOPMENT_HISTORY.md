@@ -60,3 +60,84 @@ Created complete project structure with all core files:
 
 ### Status
 All code written, not yet tested with real Excel data. See `TODO.md` for test plan.
+
+---
+
+## v0.2.0–v0.3.0 (2026-03-06)
+
+- Switched from vertical to horizontal timeline layout
+- Events placed in 6 rows (3 above, 3 below the center line)
+- Color-coded event cards by importance level
+- Adjusted starting zoom and importance thresholds
+
+---
+
+## v0.4.0 (2026-03-15)
+
+### GitHub repo, Excel column changes, HUD redesign, importance checkboxes
+
+**GitHub**
+- Created public repo: `Tripper99/DJs-Excel-Timeline-Visualizer`
+- `.gitignore` updated to exclude entire `data/` folder and `.claude/`
+
+**`convert.py`**
+- Switched from hardcoded column indices to header-based lookup (reads row 1)
+- Added `Event_short` column → output field `shortText` in JSON
+- Rows with `Viktighet == 0` are now skipped (previously clamped to 1)
+
+**`js/renderer.js`**
+- Cards display `event.shortText` (falls back to `event.text` if empty)
+- Added manual importance filter: `!tl.manualLevels.has(event.importance)`
+
+**`js/timeline.js`**
+- Added `manualLevels = new Set([1,2,3,4,5])` — checkbox override, all on by default
+
+**`index.html` / `css/style.css`**
+- HUD redesigned as full-width single-line bar pinned to top of screen
+- Added 5 importance checkboxes (1–5) with per-importance colors
+- Checkboxes AND zoom rules both apply (AND logic): unchecking hides a level even if zoom allows it
+
+**`js/app.js`**
+- `setupImportanceCheckboxes()` wires checkbox changes to `timeline.manualLevels`
+
+---
+
+## v0.5.0 (2026-03-15)
+
+### Momentum scrolling (velocity + friction)
+- Added `velocity` variable; wheel events accumulate into it
+- rAF loop applies velocity then multiplies by `FRICTION=0.88` each frame
+- Zoom resets velocity to 0
+
+*Note: Still moved in discrete ticks — replaced in v0.7.0*
+
+---
+
+## v0.6.0 (2026-03-15)
+
+### Thicker timeline line with decade-colored segments
+- `#timeline-line` replaced by `#year-segments` container
+- 56 individual divs (1965–2020), each 8px tall, colored by decade
+- Segments built once in constructor, position updated each render frame
+
+---
+
+## v0.7.0 (2026-03-15)
+
+### Lerp-based smooth scrolling (replaces velocity/friction)
+- Root cause of ticking: velocity was applied as a full-size jump each frame
+- Fix: `targetScrollX` accumulates wheel deltas; actual `scrollX` eases 12% of remaining distance per frame
+- Zoom syncs `targetScrollX` to prevent lerp fighting new zoom position
+- Boundary wall detection: if scroll hits clamp, `targetScrollX` is snapped to current position
+- Tuning constant: `EASE = 0.12` (lower = floatier, higher = snappier)
+
+---
+
+## v0.8.0 (2026-03-15)
+
+### Zoom-scaled line thickness + alternating year colors
+- Line thickness scales log-linearly: 8px (min zoom) → 40px (max zoom), updated every frame
+- Decade colors removed; replaced with two alternating colors by `year % 2`:
+  - Even years: `#5b8db8` (steel blue)
+  - Odd years: `#b8885b` (warm amber)
+- No two adjacent year segments share a color
