@@ -141,3 +141,57 @@ All code written, not yet tested with real Excel data. See `TODO.md` for test pl
   - Even years: `#5b8db8` (steel blue)
   - Odd years: `#b8885b` (warm amber)
 - No two adjacent year segments share a color
+
+---
+
+## v0.9.0 (2026-03-15)
+
+### Swedish month markers + clickable dots to bring cards to front
+
+**Month markers (`renderer.js`, `style.css`, `index.html`)**
+- Added `#month-markers` container div to `index.html`
+- New `renderMonthMarkers()` method in Renderer, called from `render()`
+- Appears when `pixelsPerDay >= 1.5` (the "Days" HUD level); clears on zoom out
+- Swedish abbreviated names: jan, feb, mar, apr, maj, jun, jul, aug, sep, okt, nov, dec
+- Positioned 14px below centerY (below the timeline line)
+- Styled as italic to visually distinguish from bold year markers
+
+**Clickable connector dots (`renderer.js`, `style.css`)**
+- Replaced `::after` pseudo-element dot with real `<div class="connector-dot">`
+- Dot is clickable: calls `bringToFront(event.id)` on click
+- `bringToFront()`: sets `z-index: 20` + `.pinned` class on clicked card; unpins previous
+- Clicking same dot again toggles off (unpins)
+- `.event-card.pinned`: stronger box-shadow + colored outline to signal elevated card
+- Dot hover: `scale(1.5)` + subtle ring for discoverability
+
+**Gap increase (`renderer.js`)**
+- `NEAR_GAP` increased from 24px → 54px for more breathing room between cards and timeline
+
+---
+
+## v0.9.2 (2026-03-15)
+
+### Category-based card colors
+
+**`convert.py`**
+- Reads two new columns: `Kategori` and `Underkategori`
+- Outputs `kategori` and `underkategori` string fields in each event JSON object
+- Warns (non-fatal) if either column is missing in the spreadsheet
+
+**`js/renderer.js`**
+- `createCard()` checks category fields with case-insensitive substring match
+- `underkategori` containing "vallning" → class `card-vallning` (overrides all)
+- `kategori` containing "förhör" → class `card-forhor`
+
+**`css/style.css`**
+- `.card-forhor`: pale yellow background (`#fff9c4`), amber border + date color
+- `.card-vallning`: dark green background (`#1b5e20`), white text on date and body
+
+---
+
+## v0.9.3 (2026-03-15)
+
+### Month marker visibility improvement
+- Font size 9px → 12px, weight 400 → 600, color `#aaa` → `#555`
+- Added semi-transparent background pill (`rgba(240,237,232,0.85)`) with padding and border-radius
+- Markers now clearly legible over the colored timeline segments
